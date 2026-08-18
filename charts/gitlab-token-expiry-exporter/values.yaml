@@ -1,0 +1,81 @@
+# Default values for gitlab-token-expiry-exporter.
+
+gitlab:
+  # Base URL of your GitLab instance.
+  url: https://gitlab.com
+  # Group paths to scan; each group, its subgroups and their projects are covered.
+  # The token's reach scopes the scan: a group access token sees only its own group.
+  groups: []
+  #  - my-org/infrastructure
+  # How to provide the read token (scopes: read_api; role: owner on the groups).
+  # Option 1: reference an existing Secret (e.g. created by external-secrets,
+  # sealed-secrets, vault-injector, ...). This is the recommended path.
+  existingSecret: ""
+  existingSecretKey: GITLAB_READ_TOKEN
+  # Option 2: plain token, rendered into a chart-managed Secret. Quick starts only;
+  # anyone with access to your values sees it.
+  token: ""
+
+# Hours between scans (clamped to 0.25-168 by the exporter; tokens expire daily,
+# so there is little point going below a few hours).
+refreshHours: 4
+
+image:
+  repository: ghcr.io/xcloud-eu/gitlab-token-expiry-exporter
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+serviceMonitor:
+  # Requires the Prometheus Operator ServiceMonitor CRD.
+  enabled: true
+  interval: 2m
+  # Match your Prometheus serviceMonitorSelector, e.g. release: kube-prometheus-stack
+  additionalLabels: {}
+
+prometheusRule:
+  # Ship the bundled alert rules (requires the PrometheusRule CRD).
+  enabled: true
+  # Match your Prometheus ruleSelector.
+  additionalLabels: {}
+  # Days of remaining validity below which GitLabTokenExpiringSoon fires.
+  expiringSoonDays: 14
+  # Seconds without a successful scan before GitLabTokensExporterStale fires.
+  # Keep comfortably above refreshHours.
+  staleAfterSeconds: 21600
+  # Labels added to every alert (e.g. team: platform).
+  alertLabels:
+    severity: warning
+
+dashboard:
+  # Ship the Grafana dashboard as a ConfigMap for the grafana sidecar to pick up.
+  enabled: true
+  # Label the sidecar watches for.
+  sidecarLabel: grafana_dashboard
+  sidecarLabelValue: "1"
+  # Set to place the dashboard in a folder (needs sidecar folderAnnotation support).
+  folderAnnotation: ""
+  folder: ""
+
+service:
+  port: 3000
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Extra environment variables for the exporter container.
+extraEnv: []

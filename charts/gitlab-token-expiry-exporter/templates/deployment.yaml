@@ -1,0 +1,90 @@
+{{- if not .Values.gitlab.groups }}
+{{- fail "gitlab.groups must list at least one group path" }}
+{{- end }}
+{{- if and (not .Values.gitlab.existingSecret) (not .Values.gitlab.token) }}
+{{- fail "set gitlab.existingSecret (recommended) or gitlab.token" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gte.fullname" . }}
+  labels:
+    {{- include "gte.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gte.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gte.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag
+            | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: GITLAB_API
+              value: {{ printf "%s/api/v4" (trimSuffix "/" .Values.gitlab.url) | quote }}
+            - name: GITLAB_GROUPS
+              value: {{ join "," .Values.gitlab.groups | quote }}
+            - name: REFRESH_HOURS
+              value: {{ .Values.refreshHours | quote }}
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: GITLAB_READ_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gte.secretName" . }}
+                  key: {{ include "gte.secretKey" . }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.service.port }}
+          # 503 until the first scan: the pod turns Ready only with data to scrape
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

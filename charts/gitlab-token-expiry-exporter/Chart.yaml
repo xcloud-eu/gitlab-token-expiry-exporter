@@ -1,0 +1,23 @@
+apiVersion: v2
+name: gitlab-token-expiry-exporter
+description: >-
+  Prometheus exporter for GitLab group and project access token expiry, with
+  alert rules and a Grafana dashboard included.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/xcloud-eu/gitlab-token-expiry-exporter
+sources:
+  - https://github.com/xcloud-eu/gitlab-token-expiry-exporter
+keywords:
+  - gitlab
+  - prometheus
+  - exporter
+  - access-tokens
+  - monitoring
+maintainers:
+  - name: xcloud-eu
+    url: https://github.com/xcloud-eu
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/category: monitoring-logging

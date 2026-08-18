@@ -1,0 +1,94 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "gte.fullname" . }}
+  labels:
+    {{- include "gte.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: gitlab-token-expiry
+      rules:
+        - alert: GitLabTokenExpiringSoon
+          expr: >-
+            gitlab_token_days_remaining{active="true", revoked="false"}
+            < {{ .Values.prometheusRule.expiringSoonDays }} >= 0
+          for: 15m
+          {{- with .Values.prometheusRule.alertLabels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          annotations:
+            summary: >-
+              GitLab token `{{ `{{ $labels.name }}` }}` ({{ `{{ $labels.type }}` }}) expires
+              {{ `{{ $labels.expires_at }}` }} ({{ `{{ $value }}` }}d left)
+            description: "Rotate the token and update whatever uses it."
+            expires: {{ `"{{ $labels.expires_at }}"` }}
+            days_left: {{ `"{{ $value }}"` }}
+            rotate_url: {{ `"{{ $labels.web_url }}/-/settings/access_tokens"` }}
+            repo_url: {{ `"{{ $labels.web_url }}"` }}
+        # GitLab flips active=false on the expiry date, so the rule above stops firing then
+        - alert: GitLabTokenExpired
+          expr: >-
+            gitlab_token_days_remaining{revoked="false"} < 0
+            unless on(name, type, project, group)
+            (gitlab_token_days_remaining{active="true"} >= 0)
+          for: 15m
+          {{- with .Values.prometheusRule.alertLabels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          annotations:
+            summary: >-
+              GitLab token `{{ `{{ $labels.name }}` }}` ({{ `{{ $labels.type }}` }}) expired
+              {{ `{{ $labels.expires_at }}` }} with no active replacement
+            description: >-
+              Rotate the token and update whatever uses it, or revoke it. A replacement
+              only counts as one if it kept the same token name.
+            rotate_url: {{ `"{{ $labels.web_url }}/-/settings/access_tokens"` }}
+            repo_url: {{ `"{{ $labels.web_url }}"` }}
+        - alert: GitLabTokensExporterScanErrors
+          expr: gitlab_tokens_exporter_scan_errors > 0
+          for: 15m
+          {{- with .Values.prometheusRule.alertLabels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          annotations:
+            summary: >-
+              gitlab-token-expiry-exporter: {{ `{{ $value }}` }} scan error(s) - some
+              tokens may be unmonitored
+            description: "Check the exporter logs; the last complete result is being served."
+        # the exporter only advances this timestamp after a scan with zero errors
+        - alert: GitLabTokensExporterStale
+          expr: >-
+            time() - gitlab_tokens_exporter_last_scan_timestamp
+            > {{ .Values.prometheusRule.staleAfterSeconds }}
+          for: 15m
+          {{- with .Values.prometheusRule.alertLabels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          annotations:
+            summary: >-
+              gitlab-token-expiry-exporter: no successful scan for
+              >{{ .Values.prometheusRule.staleAfterSeconds }}s - metrics are frozen
+            description: "Check exporter logs and GitLab reachability."
+        - alert: GitLabTokensExporterAbsent
+          expr: absent(gitlab_token_days_remaining)
+          for: 1h
+          {{- with .Values.prometheusRule.alertLabels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          annotations:
+            summary: >-
+              gitlab-token-expiry-exporter reports no metrics - token expiry
+              is unmonitored
+            description: >-
+              Check the {{ include "gte.fullname" . }} deployment in the
+              {{ .Release.Namespace }} namespace.
+{{- end }}

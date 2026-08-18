@@ -1,0 +1,25 @@
+gitlab-token-expiry-exporter deployed.
+
+Scanning {{ join ", " .Values.gitlab.groups }} on {{ .Values.gitlab.url }}
+every {{ .Values.refreshHours }}h.
+
+Metrics: port {{ .Values.service.port }}, path /metrics
+  gitlab_token_days_remaining{name,type,group|project,active,revoked,...}
+  gitlab_tokens_exporter_scan_errors
+  gitlab_tokens_exporter_last_scan_timestamp
+
+{{- if .Values.serviceMonitor.enabled }}
+
+ServiceMonitor is enabled. Make sure serviceMonitor.additionalLabels matches
+your Prometheus serviceMonitorSelector, or the target will not be scraped.
+{{- end }}
+{{- if .Values.prometheusRule.enabled }}
+
+Alert rules are enabled. Make sure prometheusRule.additionalLabels matches
+your Prometheus ruleSelector, or the rules will not be evaluated.
+{{- end }}
+{{- if .Values.gitlab.token }}
+
+WARNING: the GitLab token is set as a plain value (gitlab.token). Prefer
+gitlab.existingSecret backed by your secret manager.
+{{- end }}

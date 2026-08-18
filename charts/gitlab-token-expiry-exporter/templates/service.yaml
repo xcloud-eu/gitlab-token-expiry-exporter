@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gte.fullname" . }}
+  labels:
+    {{- include "gte.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "gte.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: {{ .Values.service.port }}
+      targetPort: metrics
