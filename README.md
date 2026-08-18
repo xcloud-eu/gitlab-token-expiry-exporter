@@ -116,4 +116,4 @@ whose subgroup-walking approach also informed this exporter.
 
 ## License
 
-Apache-2.0
+Apache-2.0 - Copyright 2026 [x-ion GmbH](https://www.x-ion.de/)
