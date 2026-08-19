@@ -8,8 +8,10 @@ gitlab:
   groups: []
   #  - my-org/infrastructure
   # How to provide the read token (scopes: read_api; role: owner on the groups).
-  # Option 1: reference an existing Secret (e.g. created by external-secrets,
-  # sealed-secrets, vault-injector, ...). This is the recommended path.
+  # Option 1 (recommended): name of a Secret that already exists in the release
+  # namespace and holds the token — created by whatever you use for secrets
+  # (external-secrets, sealed-secrets, vault-injector, plain kubectl).
+  # existingSecretKey is the key WITHIN that Secret the token lives under.
   existingSecret: ""
   existingSecretKey: GITLAB_READ_TOKEN
   # Option 2: plain token, rendered into a chart-managed Secret. Quick starts only;
@@ -22,7 +24,8 @@ refreshHours: 4
 
 image:
   repository: ghcr.io/xcloud-eu/gitlab-token-expiry-exporter
-  # Defaults to the chart appVersion.
+  # Empty means "the image released with this chart version" (Chart appVersion) —
+  # that pairing is what gets tested. Set only to pin or test a different build.
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -50,6 +53,21 @@ prometheusRule:
   # Labels added to every alert (e.g. team: platform).
   alertLabels:
     severity: warning
+  # Toggle individual bundled alerts off without losing the rest.
+  rules:
+    tokenExpiringSoon: true
+    tokenExpired: true
+    scanErrors: true
+    stale: true
+    absent: true
+  # Extra alert rules appended verbatim to the bundled group (PrometheusRule
+  # rule syntax). alertLabels are NOT applied here — set labels explicitly.
+  additionalRules: []
+  #  - alert: GitLabTokenExpiredCritical
+  #    expr: gitlab_token_days_remaining{active="true"} < 3
+  #    for: 15m
+  #    labels:
+  #      severity: critical
 
 dashboard:
   # Ship the Grafana dashboard as a ConfigMap for the grafana sidecar to pick up.
@@ -62,7 +80,7 @@ dashboard:
   folder: ""
 
 service:
-  port: 3000
+  port: 9184
 
 resources:
   requests:

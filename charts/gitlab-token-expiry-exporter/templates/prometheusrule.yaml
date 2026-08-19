@@ -1,4 +1,10 @@
 {{- if .Values.prometheusRule.enabled }}
+{{- $rules := .Values.prometheusRule.rules }}
+{{- $anyBundled := or $rules.tokenExpiringSoon $rules.tokenExpired $rules.scanErrors
+      $rules.stale $rules.absent }}
+{{- if and (not $anyBundled) (not .Values.prometheusRule.additionalRules) }}
+{{- fail "prometheusRule.enabled with every rule off renders an empty PrometheusRule; set prometheusRule.enabled=false instead" }}
+{{- end }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -12,6 +18,7 @@ spec:
   groups:
     - name: gitlab-token-expiry
       rules:
+        {{- if $rules.tokenExpiringSoon }}
         - alert: GitLabTokenExpiringSoon
           expr: >-
             gitlab_token_days_remaining{active="true", revoked="false"}
@@ -30,7 +37,9 @@ spec:
             days_left: {{ `"{{ $value }}"` }}
             rotate_url: {{ `"{{ $labels.web_url }}/-/settings/access_tokens"` }}
             repo_url: {{ `"{{ $labels.web_url }}"` }}
-        # GitLab flips active=false on the expiry date, so the rule above stops firing then
+        {{- end }}
+        {{- if $rules.tokenExpired }}
+        # GitLab flips active=false on the expiry date, so ExpiringSoon stops firing then
         - alert: GitLabTokenExpired
           expr: >-
             gitlab_token_days_remaining{revoked="false"} < 0
@@ -50,6 +59,8 @@ spec:
               only counts as one if it kept the same token name.
             rotate_url: {{ `"{{ $labels.web_url }}/-/settings/access_tokens"` }}
             repo_url: {{ `"{{ $labels.web_url }}"` }}
+        {{- end }}
+        {{- if $rules.scanErrors }}
         - alert: GitLabTokensExporterScanErrors
           expr: gitlab_tokens_exporter_scan_errors > 0
           for: 15m
@@ -62,6 +73,8 @@ spec:
               gitlab-token-expiry-exporter: {{ `{{ $value }}` }} scan error(s) - some
               tokens may be unmonitored
             description: "Check the exporter logs; the last complete result is being served."
+        {{- end }}
+        {{- if $rules.stale }}
         # the exporter only advances this timestamp after a scan with zero errors
         - alert: GitLabTokensExporterStale
           expr: >-
@@ -77,6 +90,8 @@ spec:
               gitlab-token-expiry-exporter: no successful scan for
               >{{ .Values.prometheusRule.staleAfterSeconds }}s - metrics are frozen
             description: "Check exporter logs and GitLab reachability."
+        {{- end }}
+        {{- if $rules.absent }}
         - alert: GitLabTokensExporterAbsent
           expr: absent(gitlab_token_days_remaining)
           for: 1h
@@ -91,4 +106,8 @@ spec:
             description: >-
               Check the {{ include "gte.fullname" . }} deployment in the
               {{ .Release.Namespace }} namespace.
+        {{- end }}
+        {{- with .Values.prometheusRule.additionalRules }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
 {{- end }}

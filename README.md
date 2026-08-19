@@ -60,17 +60,24 @@ scope and the Owner role on each group listed in `gitlab.groups` — listing
 access tokens requires owner. The token's reach also scopes the scan: a group
 token only sees its own group tree.
 
-Provide it either as an existing `Secret` (recommended — works with
-external-secrets, sealed-secrets, vault-injector, anything that produces a
-Secret):
+Provide it one of two ways:
 
-```yaml
-gitlab:
-  existingSecret: my-gitlab-token-secret
-  existingSecretKey: GITLAB_READ_TOKEN
-```
+1. **`gitlab.existingSecret`** (recommended) — the name of a Secret that already
+   exists in the release namespace, created by whatever you use for secret
+   management: external-secrets, sealed-secrets, vault-injector, or plain
+   `kubectl create secret`. `gitlab.existingSecretKey` names the key inside
+   that Secret holding the token (default `GITLAB_READ_TOKEN`). The chart never
+   sees the token value; it only wires the reference into the Deployment.
 
-or, for a quick start only, inline as `gitlab.token`.
+   ```yaml
+   gitlab:
+     existingSecret: my-gitlab-token-secret
+     existingSecretKey: GITLAB_READ_TOKEN
+   ```
+
+2. **`gitlab.token`** — the token inline in values, rendered into a
+   chart-managed Secret. Quick starts only: anyone who can read your values
+   (git, CI logs, `helm get values`) reads the token.
 
 An example ExternalSecret pulling the token from a GitLab CI/CD variable is in
 [examples/externalsecret.yaml](examples/externalsecret.yaml).
@@ -92,6 +99,28 @@ prometheusRule:
 The Grafana dashboard ships as a ConfigMap labelled for the grafana sidecar
 (`dashboard.enabled`, on by default).
 
+### Customising alerts
+
+Every bundled alert can be switched off individually, and you can append your
+own rules — they land in the same PrometheusRule:
+
+```yaml
+prometheusRule:
+  rules:
+    tokenExpired: false          # drop a bundled alert
+  additionalRules:               # verbatim PrometheusRule rule syntax
+    - alert: GitLabTokenExpiredCritical
+      expr: gitlab_token_days_remaining{active="true"} < 3
+      for: 15m
+      labels:
+        severity: critical
+```
+
+`prometheusRule.alertLabels` is stamped on every bundled alert (default
+`severity: warning`); `additionalRules` carry only the labels you write on
+them. Disabling all bundled rules with no additional ones is a template error
+— set `prometheusRule.enabled: false` instead.
+
 ## Values
 
 See [values.yaml](charts/gitlab-token-expiry-exporter/values.yaml) — every
@@ -102,17 +131,41 @@ knob is documented inline. The notable ones:
 | `gitlab.url` | `https://gitlab.com` | your GitLab instance |
 | `gitlab.groups` | `[]` (required) | group paths to scan, subgroups included |
 | `refreshHours` | `4` | scan interval |
+| `image.tag` | `""` = chart appVersion | the image built and tested with this chart release |
+| `service.port` | `9184` | metrics port |
 | `prometheusRule.expiringSoonDays` | `14` | warning threshold |
-| `prometheusRule.alertLabels` | `severity: warning` | labels stamped on every alert |
+| `prometheusRule.alertLabels` | `severity: warning` | labels stamped on every bundled alert |
+| `prometheusRule.rules.*` | all `true` | per-alert toggles for the bundled rules |
+| `prometheusRule.additionalRules` | `[]` | your own rules, appended to the bundled group |
 | `dashboard.folderAnnotation` / `folder` | unset | place the dashboard in a sidecar folder |
 
-## Scope
+## Limitations
 
-Group and project access tokens only. Personal access tokens are not scanned —
-listing those instance-wide requires an admin token, which is a much bigger
-credential than this needs. If you want PAT coverage, look at
-[cnieg/gitlab-tokens-exporter](https://github.com/cnieg/gitlab-tokens-exporter),
-whose subgroup-walking approach also informed this exporter.
+- **Group and project access tokens only.** Personal access tokens are not
+  scanned — listing those instance-wide requires an admin token, a much bigger
+  credential than this needs. Deploy tokens, OAuth tokens and CI job tokens are
+  also out of scope. For PAT coverage, look at
+  [cnieg/gitlab-tokens-exporter](https://github.com/cnieg/gitlab-tokens-exporter),
+  whose subgroup-walking approach also informed this exporter.
+- **Owner is required.** GitLab only lets Owners list access tokens, so the
+  scan token needs the Owner role on every group in `gitlab.groups`.
+- **Tokens without an expiry date are skipped.** Old tokens created before
+  GitLab enforced expiry (pre-16.0) carry no `expires_at` and produce no
+  metric — a non-expiring token is invisible here (it also can't "expire").
+- **Replacement detection is by name.** `GitLabTokenExpired` treats an active
+  token with the same name in the same project/group as the rotation of an
+  expired one. Rotate under a new name and the old token keeps alerting until
+  revoked.
+- **It polls.** New or rotated tokens appear after the next scan
+  (`refreshHours`, default 4h) plus a scrape interval — this is an expiry
+  monitor with day granularity, not a real-time inventory.
+- **One metric series per token.** Fine for hundreds or a few thousand tokens;
+  scanning tens of thousands of projects sequentially will make scans slow and
+  is untested territory.
+- **Single replica.** After a pod restart the exporter serves 503 until its
+  first scan completes (the readiness probe gates on this); state is
+  in-memory. `GitLabTokensExporterAbsent` (1h) catches a scrape gap that
+  actually matters.
 
 ## License
 
