@@ -8,10 +8,12 @@ gitlab:
   groups: []
   #  - my-org/infrastructure
   # How to provide the read token (scopes: read_api; role: owner on the groups).
-  # Option 1 (recommended): name of a Secret that already exists in the release
-  # namespace and holds the token — created by whatever you use for secrets
-  # (external-secrets, sealed-secrets, vault-injector, plain kubectl).
-  # existingSecretKey is the key WITHIN that Secret the token lives under.
+  # Default (nothing set): the chart references a Secret named after the release
+  # (helm status shows the exact name) with key GITLAB_READ_TOKEN — create it with
+  # whatever you use for secrets (external-secrets, sealed-secrets, kubectl) and
+  # you're done, no values needed here.
+  # existingSecret: reference a Secret under a different name instead;
+  # existingSecretKey is the key within it that holds the token.
   existingSecret: ""
   existingSecretKey: GITLAB_READ_TOKEN
   # Option 2: plain token, rendered into a chart-managed Secret. Quick starts only;
@@ -24,9 +26,8 @@ refreshHours: 4
 
 image:
   repository: ghcr.io/xcloud-eu/gitlab-token-expiry-exporter
-  # Empty means "the image released with this chart version" (Chart appVersion) —
-  # that pairing is what gets tested. Set only to pin or test a different build.
-  tag: ""
+  # The image released and tested with this chart version; override to pin another.
+  tag: "0.2.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

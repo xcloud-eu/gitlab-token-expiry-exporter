@@ -4,7 +4,7 @@ description: >-
   Prometheus exporter for GitLab group and project access token expiry, with
   alert rules and a Grafana dashboard included.
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "0.2.0"
 home: https://github.com/xcloud-eu/gitlab-token-expiry-exporter
 sources:

@@ -21,5 +21,10 @@ your Prometheus ruleSelector, or the rules will not be evaluated.
 {{- if .Values.gitlab.token }}
 
 WARNING: the GitLab token is set as a plain value (gitlab.token). Prefer
-gitlab.existingSecret backed by your secret manager.
+a Secret backed by your secret manager.
+{{- else if not .Values.gitlab.existingSecret }}
+
+Token source: a Secret named "{{ include "gte.secretName" . }}" in namespace
+{{ .Release.Namespace }}, key GITLAB_READ_TOKEN. Create it (external-secrets,
+sealed-secrets, kubectl, ...) or the pod stays in CreateContainerConfigError.
 {{- end }}

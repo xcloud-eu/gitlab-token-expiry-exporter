@@ -1,9 +1,6 @@
 {{- if not .Values.gitlab.groups }}
 {{- fail "gitlab.groups must list at least one group path" }}
 {{- end }}
-{{- if and (not .Values.gitlab.existingSecret) (not .Values.gitlab.token) }}
-{{- fail "set gitlab.existingSecret (recommended) or gitlab.token" }}
-{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
