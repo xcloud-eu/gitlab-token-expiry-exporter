@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 API = os.environ.get("GITLAB_API", "https://gitlab.com/api/v4").rstrip("/")
 GROUPS = [g.strip() for g in os.environ.get("GITLAB_GROUPS", "").split(",") if g.strip()]
 TOKEN = os.environ.get("GITLAB_READ_TOKEN", "")
-PORT = int(os.environ.get("PORT", "3000"))
+PORT = int(os.environ.get("PORT", "9184"))
 WEB = API.rsplit("/api/v4", 1)[0]
 HTTP_TIMEOUT = 30
 
