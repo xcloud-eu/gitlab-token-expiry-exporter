@@ -38,6 +38,34 @@ Design notes worth knowing:
   replacement exists.
 - The exporter is ~200 lines of stdlib-only Python. No dependencies to update.
 
+## Coverage model
+
+This exporter looks at GitLab from the inventory side. It monitors access tokens
+that GitLab reports on the configured groups and projects, regardless of where
+those tokens are eventually used.
+
+Covered:
+
+- group access tokens on the configured groups and their descendants
+- project access tokens in non-archived projects under those groups
+- expiry state for tokens that have an `expires_at` value
+
+Not covered:
+
+- tracing which workload, CI variable, Kubernetes Secret, ExternalSecret,
+  Renovate config, or other consumer uses a token
+- proving whether an expired or expiring token is still referenced anywhere
+- personal access tokens, deploy tokens, OAuth tokens, CI job tokens, SSH keys,
+  or other credential types
+- tokens outside the configured GitLab group trees or outside the scan token's
+  permissions
+- tokens without an expiry date
+
+Those consumer-side and broader credential-inventory features are deliberately
+out of scope for the first version. If a concrete need appears, this exporter can
+grow in that direction later, but today it is an expiry monitor for GitLab group
+and project access tokens.
+
 ## Install
 
 The chart is released as an OCI package:
