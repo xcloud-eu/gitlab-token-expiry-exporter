@@ -45,9 +45,11 @@ The chart is released as an OCI package:
 ```sh
 helm install tokens oci://ghcr.io/xcloud-eu/charts/gitlab-token-expiry-exporter \
   --set gitlab.url=https://gitlab.example.com \
-  --set 'gitlab.groups={my-org}' \
-  --set gitlab.existingSecret=my-gitlab-token-secret
+  --set 'gitlab.groups={my-org}'
 ```
+
+then put the GitLab token into the Secret the install NOTES name (see
+[The token](#the-token) below).
 
 ## Dashboard
 
@@ -60,22 +62,24 @@ scope and the Owner role on each group listed in `gitlab.groups` — listing
 access tokens requires owner. The token's reach also scopes the scan: a group
 token only sees its own group tree.
 
-Provide it one of two ways:
+Provide it one of three ways:
 
-1. **`gitlab.existingSecret`** (recommended) — the name of a Secret that already
-   exists in the release namespace, created by whatever you use for secret
-   management: external-secrets, sealed-secrets, vault-injector, or plain
-   `kubectl create secret`. `gitlab.existingSecretKey` names the key inside
-   that Secret holding the token (default `GITLAB_READ_TOKEN`). The chart never
-   sees the token value; it only wires the reference into the Deployment.
+1. **Default — no values at all.** The chart references a Secret named after
+   the release (`<release>-gitlab-token-expiry-exporter`, or just the release
+   name if it contains the chart name; the install NOTES print the exact name)
+   with key `GITLAB_READ_TOKEN`. Create that Secret however you manage secrets
+   — external-secrets, sealed-secrets, `kubectl create secret` — and you're
+   done. Until it exists the pod waits in `CreateContainerConfigError`.
+
+2. **`gitlab.existingSecret`** — your Secret has a different name (and
+   optionally `gitlab.existingSecretKey` for a different key):
 
    ```yaml
    gitlab:
      existingSecret: my-gitlab-token-secret
-     existingSecretKey: GITLAB_READ_TOKEN
    ```
 
-2. **`gitlab.token`** — the token inline in values, rendered into a
+3. **`gitlab.token`** — the token inline in values, rendered into a
    chart-managed Secret. Quick starts only: anyone who can read your values
    (git, CI logs, `helm get values`) reads the token.
 
@@ -131,7 +135,7 @@ knob is documented inline. The notable ones:
 | `gitlab.url` | `https://gitlab.com` | your GitLab instance |
 | `gitlab.groups` | `[]` (required) | group paths to scan, subgroups included |
 | `refreshHours` | `4` | scan interval |
-| `image.tag` | `""` = chart appVersion | the image built and tested with this chart release |
+| `image.tag` | the released version | the image built and tested with this chart release |
 | `service.port` | `9184` | metrics port |
 | `prometheusRule.expiringSoonDays` | `14` | warning threshold |
 | `prometheusRule.alertLabels` | `severity: warning` | labels stamped on every bundled alert |
