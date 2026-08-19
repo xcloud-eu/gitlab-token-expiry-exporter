@@ -22,10 +22,11 @@ spec:
           url: https://gitlab.example.com
           groups:
             - my-org
-        # no token in values: the chart defaults to a Secret named
-        # gitlab-token-expiry-exporter (= release name, key GITLAB_READ_TOKEN).
-        # Create it in the destination namespace, e.g. with the ExternalSecret
-        # from examples/externalsecret.yaml.
+          # point at the Secret the ExternalSecret below produces (any name
+          # works; without these two lines the chart expects a Secret named
+          # after the release with key GITLAB_READ_TOKEN)
+          existingSecret: gitlab-read-token
+          existingSecretKey: token
         serviceMonitor:
           additionalLabels:
             release: kube-prometheus-stack
@@ -41,3 +42,24 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
+# The token Secret, produced by external-secrets under a custom name. Apply it
+# to the SAME namespace the Application deploys to; the chart values above
+# reference it via gitlab.existingSecret / existingSecretKey.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gitlab-read-token
+  namespace: monitoring
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: my-secret-store
+  data:
+    - secretKey: token          # key inside the resulting Secret
+      remoteRef:
+        key: gitlab_read_token  # name in your secret backend
+  target:
+    creationPolicy: Owner
+    name: gitlab-read-token
