@@ -84,7 +84,9 @@ Provide it one of three ways:
    (git, CI logs, `helm get values`) reads the token.
 
 An example ExternalSecret pulling the token from a GitLab CI/CD variable is in
-[examples/externalsecret.yaml](examples/externalsecret.yaml).
+[examples/externalsecret.yaml](examples/externalsecret.yaml). Complete
+walk-throughs: [examples/helm-install.md](examples/helm-install.md) and
+[examples/argocd-application.yaml](examples/argocd-application.yaml).
 
 ### Wiring into kube-prometheus-stack
 

@@ -1,0 +1,43 @@
+# Complete ArgoCD Application consuming the chart from GHCR (OCI).
+#
+# While the GitHub repo is private its GHCR packages are too — register the
+# registry once with a token that has the read:packages scope:
+#   argocd repo add ghcr.io/xcloud-eu/charts --type helm --name xcloud-charts \
+#     --enable-oci --username <anyone> --password <read:packages token>
+# Once the repo is public, no credential is needed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlab-token-expiry-exporter
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/xcloud-eu/charts
+    chart: gitlab-token-expiry-exporter
+    targetRevision: 0.3.0
+    helm:
+      valuesObject:
+        gitlab:
+          url: https://gitlab.example.com
+          groups:
+            - my-org
+        # no token in values: the chart defaults to a Secret named
+        # gitlab-token-expiry-exporter (= release name, key GITLAB_READ_TOKEN).
+        # Create it in the destination namespace, e.g. with the ExternalSecret
+        # from examples/externalsecret.yaml.
+        serviceMonitor:
+          additionalLabels:
+            release: kube-prometheus-stack
+        prometheusRule:
+          additionalLabels:
+            release: kube-prometheus-stack
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
