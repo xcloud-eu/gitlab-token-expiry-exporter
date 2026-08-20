@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: ghcr.io/xcloud-eu/charts
     chart: gitlab-token-expiry-exporter
-    targetRevision: 0.3.0
+    targetRevision: 0.4.0
     helm:
       valuesObject:
         gitlab:

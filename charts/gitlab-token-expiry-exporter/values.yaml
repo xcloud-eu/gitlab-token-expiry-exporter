@@ -27,7 +27,7 @@ refreshHours: 4
 image:
   repository: ghcr.io/xcloud-eu/gitlab-token-expiry-exporter
   # The image released and tested with this chart version; override to pin another.
-  tag: "0.2.0"
+  tag: "0.3.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
