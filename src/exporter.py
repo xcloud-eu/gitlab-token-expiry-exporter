@@ -78,6 +78,9 @@ def days_remaining(expires_at, now):
 def token_rows(prefix, kind, path, web_url, now):
     rows = []
     for token in paged(f"{prefix}/access_tokens"):
+        # revoked = deliberately retired; expired-but-not-revoked must keep alerting
+        if token.get("revoked"):
+            continue
         if not token.get("expires_at"):
             continue
         days = days_remaining(token["expires_at"], now)
