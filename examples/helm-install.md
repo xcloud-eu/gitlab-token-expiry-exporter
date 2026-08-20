@@ -52,7 +52,7 @@ refreshHours: 4
 ```sh
 helm install tokens \
   oci://ghcr.io/xcloud-eu/charts/gitlab-token-expiry-exporter \
-  --version 0.3.0 -n monitoring -f values.yaml
+  --version 0.4.0 -n monitoring -f values.yaml
 ```
 
 ## 5. Verify
