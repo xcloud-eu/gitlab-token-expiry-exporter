@@ -114,7 +114,10 @@ def group_targets(group_path):
     except Exception as exc:
         log(f"WARN: subgroup listing failed for {group_path}: {exc}")
         errors += 1
-    projects = f"groups/{group}/projects?include_subgroups=true&archived=false&simple=true"
+    projects = (
+        f"groups/{group}/projects"
+        "?include_subgroups=true&with_shared=false&archived=false&simple=true"
+    )
     try:
         for project in paged(projects):
             targets.append(

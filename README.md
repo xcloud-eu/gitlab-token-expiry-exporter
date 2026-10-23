@@ -58,7 +58,7 @@ Not covered:
 - personal access tokens, deploy tokens, OAuth tokens, CI job tokens, SSH keys,
   or other credential types
 - tokens outside the configured GitLab group trees or outside the scan token's
-  permissions
+  permissions, including projects that are only shared into a configured group
 - tokens without an expiry date
 
 Those consumer-side and broader credential-inventory features are deliberately
